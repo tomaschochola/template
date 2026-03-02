@@ -1,0 +1,28 @@
+{
+  "containerUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": ["EditorConfig.EditorConfig", "Tyriar.sort-lines", "docker.docker", "ms-azuretools.vscode-containers"],
+      "settings": {
+        "editor.codeActionsOnSave": {
+          "source.addMissingImports.ts": "explicit",
+          "source.fixAll.ts": "explicit",
+          "source.organizeImports": "explicit",
+          "source.removeUnused.ts": "explicit",
+          "source.sort.json": "explicit"
+        },
+        "files.insertFinalNewline": true,
+        "files.trimFinalNewlines": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-trixie",
+  "init": true,
+  "postCreateCommand": "make postcreate",
+  "remoteUser": "node"
+}
