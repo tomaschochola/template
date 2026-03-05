@@ -55,7 +55,7 @@ lint_prettier: ./node_modules ./prettier.config.js
 
 .PHONY: audit_npm
 audit_npm: ./node_modules ./package.json ./package-lock.json
-	npm audit --ignore-scripts --no-progress --no-color --loglevel=warn --audit-level=info --install-links --include=prod --include=dev --include=peer --include=optional
+	npm audit --ignore-scripts --no-progress --no-color --loglevel=warn --audit-level=critical --install-links --include=prod --include=dev --include=peer --include=optional
 
 .PHONY: install_npm
 install_npm: ./package.json ./package-lock.json
