@@ -10,605 +10,420 @@
  * @see {@link https://github.com/sponsors/tomaschochola} GitHub Sponsors
  */
 
-import eslint from '@eslint/js';
-import stylex from '@stylexjs/eslint-plugin';
-import stylistic from '@stylistic/eslint-plugin';
-import a11y from 'eslint-plugin-jsx-a11y';
-import react from 'eslint-plugin-react';
-import compiler from 'eslint-plugin-react-compiler';
-import hooks from 'eslint-plugin-react-hooks';
-import sonarjs from 'eslint-plugin-sonarjs';
-import { defineConfig, globalIgnores } from 'eslint/config';
-import globals from 'globals';
-import typescript from 'typescript-eslint';
+import CompressionPlugin from 'compression-webpack-plugin';
+import CopyPlugin from 'copy-webpack-plugin';
+import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
+import HtmlMinimizerPlugin from 'html-minimizer-webpack-plugin';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import ImageMinimizerPlugin from 'image-minimizer-webpack-plugin';
+import JsonMinimizerPlugin from 'json-minimizer-webpack-plugin';
+import TerserPlugin from 'terser-webpack-plugin';
+import webpack from 'webpack';
+import WorkboxPlugin from 'workbox-webpack-plugin';
+import { constants } from 'zlib';
 
-export const GlobalIgnore = ['**/.DS_Store', '**/.fleet', '**/.idea', '**/.vscode', '**/.zed'];
-export const GlobalJavaScript = ['**/*.js', '**/*.mjs', '**/*.cjs'];
-export const GlobalJsx = ['**/*.jsx'];
-export const GlobalRC = ['**/*.config.js', '**/*.config.mjs', '**/.*rc.js', '**/.*rc.mjs', '**/*.config.cjs', '**/.*rc.cjs'];
-export const GlobalTsx = ['**/*.tsx'];
-export const GlobalTypeScript = ['**/*.ts', '**/*.mts', '**/*.cts'];
-export const RootJavaScript = ['*.js', '*.mjs', '*.cjs'];
-export const RootJsx = ['*.jsx'];
-export const RootRC = ['*.config.js', '*.config.mjs', '.*rc.js', '.*rc.mjs', '*.config.cjs', '.*rc.cjs'];
-export const RootTsx = ['*.tsx'];
-export const RootTypeScript = ['*.ts', '*.mts', '*.cts'];
+export class WebpackStack {
+  env;
+  argv;
+  config;
 
-export const GlobalEcmaScript = [...GlobalJavaScript, ...GlobalTypeScript, ...GlobalJsx, ...GlobalTsx];
-export const RootEcmaScript = [...RootJavaScript, ...RootTypeScript, ...RootJsx, ...RootTsx];
+  constructor(env, argv) {
+    this.env = env;
+    this.argv = argv;
 
-export class EslintConfig {
-  static nodeEnv() {
-    return process.env.NODE_ENV ?? 'production';
-  }
-
-  static base() {
-    return [];
-  }
-
-  static recommended(options = {}) {
-    return {
-      extends: [
-        eslint.configs.recommended,
-        {
-          rules: {
-            'no-restricted-exports': [
-              'error',
+    this.config = {
+      target: ['web', 'es2020'],
+      output: {
+        filename: 'immutable.[contenthash].js',
+        chunkFilename: 'immutable.[contenthash].js',
+        assetModuleFilename: 'immutable.[contenthash][ext][query][fragment]',
+        clean: true,
+        publicPath: 'auto',
+      },
+      devtool: this.WEBPACK_MODE === 'production' ? 'hidden-nosources-source-map' : 'eval-source-map',
+      devServer: {
+        host: '0.0.0.0',
+        port: 3000,
+        historyApiFallback: true,
+      },
+      experiments: {
+        futureDefaults: true,
+      },
+      resolve: {
+        extensions: ['.tsx', '.mts', '.ts', '.cts', '.jsx', '.mjs', '.js', '.cjs'],
+      },
+      plugins: [],
+      module: {
+        rules: [
+          {
+            test: /\.(tsx|mts|ts|cts|jsx|mjs|js|cjs)$/i,
+            resourceQuery: { not: [/raw/] },
+            use: [
               {
-                restrictDefaultExports: {
-                  defaultFrom: true,
-                  direct: true,
-                  named: true,
-                  namedFrom: true,
-                  namespaceFrom: true,
+                loader: 'babel-loader',
+              },
+            ],
+          },
+          {
+            test: /\.(sass|scss|css)$/i,
+            resourceQuery: { not: [/raw/] },
+            type: 'css/auto',
+            use: [
+              {
+                loader: 'postcss-loader',
+              },
+              {
+                loader: 'sass-loader',
+              },
+            ],
+          },
+          {
+            test: /\.(html|php)$/i,
+            resourceQuery: { not: [/raw/] },
+            use: [
+              {
+                loader: 'html-loader',
+              },
+            ],
+          },
+          {
+            resourceQuery: /source/,
+            type: 'asset/source',
+          },
+          {
+            resourceQuery: /resource/,
+            type: 'asset/resource',
+          },
+          {
+            resourceQuery: /inline/,
+            type: 'asset/inline',
+          },
+          {
+            resourceQuery: /asset/,
+            type: 'asset',
+          },
+        ],
+      },
+      optimization: {
+        removeAvailableModules: this.WEBPACK_MODE === 'production',
+        minimizer: [
+          new TerserPlugin({
+            extractComments: false,
+            terserOptions: {
+              ecma: 2020,
+              compress: {
+                drop_console: true,
+                drop_debugger: true,
+                passes: 5,
+              },
+              format: {
+                comments: false,
+              },
+            },
+          }),
+          new CssMinimizerPlugin(),
+          new HtmlMinimizerPlugin(),
+          new JsonMinimizerPlugin(),
+          new ImageMinimizerPlugin({
+            minimizer: {
+              implementation: ImageMinimizerPlugin.sharpMinify,
+              options: {
+                encodeOptions: {
+                  jpeg: {
+                    quality: 100,
+                  },
+                  webp: {
+                    lossless: true,
+                    effort: 6,
+                  },
+                  avif: {
+                    lossless: true,
+                    effort: 9,
+                  },
+                  heif: {
+                    lossless: true,
+                    effort: 9,
+                  },
+                  jxl: {
+                    lossless: true,
+                    effort: 9,
+                  },
+                  jp2: {
+                    lossless: true,
+                  },
+                  tiff: {
+                    quality: 100,
+                  },
+                  png: {
+                    effort: 10,
+                  },
+                  gif: {
+                    effort: 10,
+                  },
                 },
               },
-            ],
-          },
-        },
-      ],
-      ...options,
-    };
-  }
-
-  static typescript(options = {}) {
-    return {
-      extends: [
-        typescript.configs.strictTypeChecked,
-        typescript.configs.stylisticTypeChecked,
-        {
-          languageOptions: {
-            parserOptions: {
-              projectService: true,
             },
-          },
-        },
-        {
-          rules: {
-
-            '@typescript-eslint/consistent-type-exports': 'error',
-            '@typescript-eslint/consistent-type-imports': 'error',
-            '@typescript-eslint/default-param-last': 'error',
-            '@typescript-eslint/explicit-member-accessibility': 'error',
-            '@typescript-eslint/method-signature-style': 'error',
-            '@typescript-eslint/no-import-type-side-effects': 'error',
-            '@typescript-eslint/no-loop-func': 'error',
-            '@typescript-eslint/no-shadow': 'error',
-            '@typescript-eslint/no-unnecessary-parameter-property-assignment': 'error',
-            '@typescript-eslint/no-unnecessary-qualifier': 'error',
-            '@typescript-eslint/no-unsafe-type-assertion': 'error',
-            '@typescript-eslint/no-use-before-define': 'error',
-            '@typescript-eslint/no-useless-empty-export': 'error',
-            '@typescript-eslint/parameter-properties': 'error',
-            '@typescript-eslint/prefer-enum-initializers': 'error',
-            '@typescript-eslint/prefer-readonly': 'error',
-            '@typescript-eslint/require-array-sort-compare': 'error',
-            '@typescript-eslint/strict-boolean-expressions': [
-              'error',
+            generator: [
               {
-                allowAny: false,
-                allowNullableBoolean: false,
-                allowNullableEnum: false,
-                allowNullableNumber: false,
-                allowNullableObject: false,
-                allowNullableString: false,
-                allowNumber: false,
-                allowRuleToRunWithoutStrictNullChecksIKnowWhatIAmDoing: false,
-                allowString: false,
+                preset: 'avif',
+                type: 'import',
+                implementation: ImageMinimizerPlugin.sharpGenerate,
+                options: {
+                  encodeOptions: {
+                    avif: {
+                      quality: 60,
+                      lossless: false,
+                      effort: 9,
+                      chromaSubsampling: '4:2:0',
+                      bitdepth: 8,
+                    },
+                  },
+                },
               },
-            ],
-            '@typescript-eslint/switch-exhaustiveness-check': 'error',
-            'default-param-last': 'off',
-            'no-loop-func': 'off',
-            'no-shadow': 'off',
-            'no-use-before-define': 'off',
-          },
-        },
-      ],
-      files: [...GlobalTypeScript, ...GlobalTsx],
-      ...options,
-    };
-  }
-
-  static react(options = {}) {
-    return {
-      extends: [
-        react.configs.flat['recommended'],
-        react.configs.flat['jsx-runtime'],
-        {
-          rules: {
-            'react/boolean-prop-naming': 'error',
-            'react/checked-requires-onchange-or-readonly': 'error',
-            'react/default-props-match-prop-types': 'error',
-            'react/destructuring-assignment': 'error',
-            'react/forbid-foreign-prop-types': 'error',
-            'react/forbid-prop-types': 'error',
-            'react/forward-ref-uses-ref': 'error',
-            'react/function-component-definition': 'error',
-            'react/hook-use-state': 'error',
-            'react/iframe-missing-sandbox': 'error',
-            'react/jsx-boolean-value': 'error',
-            'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }],
-            'react/jsx-fragments': 'error',
-            'react/jsx-handler-names': 'error',
-            'react/jsx-no-bind': 'error',
-            'react/jsx-no-constructed-context-values': 'error',
-            'react/jsx-no-leaked-render': 'error',
-            'react/jsx-no-literals': 'error',
-            'react/jsx-no-script-url': 'error',
-            'react/jsx-no-useless-fragment': 'error',
-            'react/jsx-pascal-case': 'error',
-            'react/jsx-props-no-spread-multi': 'error',
-            'react/no-access-state-in-setstate': 'error',
-            'react/no-adjacent-inline-elements': 'error',
-            'react/no-array-index-key': 'error',
-            'react/no-arrow-function-lifecycle': 'error',
-            'react/no-danger': 'error',
-            'react/no-did-mount-set-state': 'error',
-            'react/no-did-update-set-state': 'error',
-            'react/no-invalid-html-attribute': 'error',
-            'react/no-namespace': 'error',
-            'react/no-object-type-as-default-prop': 'error',
-            'react/no-redundant-should-component-update': 'error',
-            'react/no-this-in-sfc': 'error',
-            'react/no-typos': 'error',
-            'react/no-unsafe': 'error',
-            'react/no-unstable-nested-components': 'error',
-            'react/no-unused-class-component-methods': 'error',
-            'react/no-unused-prop-types': 'error',
-            'react/no-unused-state': 'error',
-            'react/no-will-update-set-state': 'error',
-            'react/prefer-es6-class': 'error',
-            'react/prefer-exact-props': 'error',
-            'react/prefer-read-only-props': 'error',
-            'react/prefer-stateless-function': 'error',
-            'react/require-optimization': 'error',
-            'react/state-in-constructor': 'error',
-            'react/static-property-placement': 'error',
-            'react/style-prop-object': 'error',
-            'react/void-dom-elements-no-children': 'error',
-          },
-        },
-        {
-          settings: {
-            react: {
-              version: 'detect',
-            },
-          },
-        },
-      ],
-      ...options,
-    };
-  }
-
-  static reactHooks(options = {}) {
-    return {
-      extends: [
-        hooks.configs['recommended-latest'],
-        {
-          rules: {
-            'react-hooks/exhaustive-deps': 'error',
-            'react-hooks/rules-of-hooks': 'error',
-          },
-        },
-      ],
-      ...options,
-    };
-  }
-
-  static reactCompiler(options = {}) {
-    return {
-      extends: [compiler.configs.recommended],
-      ...options,
-    };
-  }
-
-  static jsxA11y(options = {}) {
-    return {
-      extends: [
-        a11y.flatConfigs.strict,
-        {
-          rules: {
-            'jsx-a11y/anchor-ambiguous-text': 'error',
-            'jsx-a11y/control-has-associated-label': 'error',
-            'jsx-a11y/lang': 'error',
-            'jsx-a11y/no-aria-hidden-on-focusable': 'error',
-            'jsx-a11y/prefer-tag-over-role': 'error',
-          },
-        },
-      ],
-      ...options,
-    };
-  }
-
-  static stylex(options = {}) {
-    return {
-      extends: [
-        {
-          plugins: {
-            '@stylexjs': stylex,
-          },
-          rules: {
-            '@stylexjs/no-legacy-contextual-styles': 'error',
-            '@stylexjs/no-unused': 'error',
-            '@stylexjs/sort-keys': 'error',
-            '@stylexjs/valid-shorthands': 'error',
-            '@stylexjs/valid-styles': [
-              'error',
               {
-                propLimits: {
-                  viewTimeline: {
-                    limit: null,
-                    reason: 'Only longhand properties are allowed.',
+                preset: 'webp',
+                type: 'import',
+                implementation: ImageMinimizerPlugin.sharpGenerate,
+                options: {
+                  encodeOptions: {
+                    webp: {
+                      quality: 90,
+                      alphaQuality: 100,
+                      lossless: false,
+                      nearLossless: false,
+                      smartSubsample: true,
+                      effort: 6,
+                      minSize: false,
+                      mixed: false,
+                      preset: 'default',
+                    },
+                  },
+                },
+              },
+              {
+                preset: 'png',
+                type: 'import',
+                implementation: ImageMinimizerPlugin.sharpGenerate,
+                options: {
+                  encodeOptions: {
+                    png: {
+                      progressive: true,
+                      compressionLevel: 9,
+                      adaptiveFiltering: true,
+                      quality: 100,
+                      effort: 10,
+                      palette: true,
+                      colours: 256,
+                      colors: 256,
+                      dither: 0.8,
+                    },
+                  },
+                },
+              },
+              {
+                preset: 'jpg',
+                type: 'import',
+                implementation: ImageMinimizerPlugin.sharpGenerate,
+                options: {
+                  encodeOptions: {
+                    jpg: {
+                      quality: 80,
+                      progressive: true,
+                      chromaSubsampling: '4:4:4',
+                      trellisQuantisation: true,
+                      overshootDeringing: true,
+                      optimiseScans: true,
+                      optimizeScans: true,
+                      optimiseCoding: true,
+                      optimizeCoding: true,
+                      quantisationTable: 2,
+                      quantizationTable: 2,
+                      mozjpeg: true,
+                    },
                   },
                 },
               },
             ],
-          },
-        },
-      ],
-      ...options,
+          }),
+        ],
+      },
     };
   }
 
-  static stylistic(options = {}) {
-    return {
-      extends: [
-        stylistic.configs.customize({
-          arrowParens: true,
-          blockSpacing: true,
-          braceStyle: '1tbs',
-          commaDangle: 'always-multiline',
-          indent: 2,
-          jsx: true,
-          quoteProps: 'consistent-as-needed',
-          quotes: 'single',
-          semi: true,
+  get WEBPACK_BUILD() {
+    return this.env.WEBPACK_BUILD ?? false;
+  }
+
+  get WEBPACK_WATCH() {
+    return this.env.WEBPACK_WATCH ?? false;
+  }
+
+  get WEBPACK_SERVE() {
+    return this.env.WEBPACK_SERVE ?? false;
+  }
+
+  get WEBPACK_MODE() {
+    return this.argv.mode ?? 'production';
+  }
+
+  get NODE_ENV() {
+    return this.argv.nodeEnv ?? 'production';
+  }
+
+  replace(config) {
+    this.config = { ...config };
+
+    return this;
+  }
+
+  copy(options = {}) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new CopyPlugin({
+          patterns: [
+            {
+              from: './public',
+              to: '.',
+            },
+          ],
+          ...options,
         }),
-        {
-          rules: {
-            '@stylistic/array-bracket-newline': 'error',
-            '@stylistic/array-element-newline': [
-              'error',
-              {
-                consistent: true,
-                multiline: true,
-              },
-            ],
-            '@stylistic/curly-newline': ['error', 'always'],
-            '@stylistic/function-call-argument-newline': ['error', 'consistent'],
-            '@stylistic/function-call-spacing': 'error',
-            '@stylistic/function-paren-newline': ['error', 'consistent'],
-            '@stylistic/implicit-arrow-linebreak': 'error',
-            '@stylistic/jsx-child-element-spacing': 'error',
-            '@stylistic/jsx-first-prop-new-line': ['error', 'always'],
-            '@stylistic/jsx-max-props-per-line': [
-              'error',
-              {
-                maximum: 1,
-                when: 'always',
-              },
-            ],
-            '@stylistic/jsx-one-expression-per-line': ['error', { allow: 'none' }],
-            '@stylistic/jsx-pascal-case': 'error',
-            '@stylistic/jsx-props-no-multi-spaces': 'error',
-            '@stylistic/jsx-self-closing-comp': 'error',
-            '@stylistic/line-comment-position': 'error',
-            '@stylistic/linebreak-style': 'error',
-            '@stylistic/lines-around-comment': [
-              'error',
-              {
-                afterHashbangComment: true,
-                allowArrayStart: true,
-                allowBlockStart: true,
-                allowClassStart: true,
-                allowEnumStart: true,
-                allowInterfaceStart: true,
-                allowModuleStart: true,
-                allowObjectStart: true,
-                allowTypeStart: true,
-                beforeBlockComment: true,
-                beforeLineComment: true,
-              },
-            ],
-            '@stylistic/multiline-comment-style': 'error',
-            '@stylistic/no-confusing-arrow': 'error',
-            '@stylistic/no-extra-semi': 'error',
-            '@stylistic/nonblock-statement-body-position': 'error',
-            '@stylistic/object-curly-newline': [
-              'error',
-              {
-                consistent: true,
-                multiline: true,
-              },
-            ],
-            '@stylistic/object-property-newline': 'error',
-            '@stylistic/one-var-declaration-per-line': ['error', 'always'],
-            '@stylistic/padding-line-between-statements': [
-              'error',
-              {
-                blankLine: 'always',
-                next: 'return',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'break',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'case',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'class',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'continue',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'debugger',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'default',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'do',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'export',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'for',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'function',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'if',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'switch',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'throw',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'try',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'while',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'with',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: ['const', 'let', 'var'],
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: ['singleline-const', 'singleline-let', 'singleline-var'],
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: ['multiline-const', 'multiline-let', 'multiline-var'],
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: 'import',
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: 'cjs-import',
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: 'export',
-              },
-              {
-                blankLine: 'any',
-                next: 'singleline-const',
-                prev: 'singleline-const',
-              },
-              {
-                blankLine: 'any',
-                next: 'singleline-let',
-                prev: 'singleline-let',
-              },
-              {
-                blankLine: 'any',
-                next: 'singleline-var',
-                prev: 'singleline-var',
-              },
-              {
-                blankLine: 'any',
-                next: 'import',
-                prev: 'import',
-              },
-              {
-                blankLine: 'any',
-                next: 'cjs-import',
-                prev: 'cjs-import',
-              },
-              {
-                blankLine: 'any',
-                next: 'export',
-                prev: 'export',
-              },
-              {
-                blankLine: 'always',
-                next: 'multiline-const',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'multiline-let',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'multiline-var',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'multiline-export',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: 'block-like',
-                prev: '*',
-              },
-              {
-                blankLine: 'always',
-                next: '*',
-                prev: 'block-like',
-              },
-            ],
-            '@stylistic/semi-style': 'error',
-            '@stylistic/switch-colon-spacing': 'error',
-            '@stylistic/wrap-regex': 'error',
-          },
-        },
-        stylistic.configs['disable-legacy'],
       ],
-      ...options,
-    };
+    });
   }
 
-  static sonarjs(options = {}) {
-    return {
-      extends: [
-        sonarjs.configs.recommended,
-        {
-          rules: {
-            'sonarjs/cognitive-complexity': 'off',
-            'sonarjs/function-return-type': 'off',
-            'sonarjs/no-nested-conditional': 'off',
-            'sonarjs/void-use': 'off',
-          },
-        },
+  html(options = {}) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new HtmlWebpackPlugin({
+          template: './node_modules/@premierstacks/webpack-stack/assets/index.html',
+          filename: 'index.html',
+          xhtml: true,
+          inject: true,
+          chunks: 'all',
+          publicPath: '/',
+          ...options,
+        }),
       ],
-      ...options,
-    };
+    });
   }
 
-  static globals(globals, options = {}) {
-    return {
-      extends: [
-        {
-          languageOptions: {
-            globals: globals,
-          },
-        },
+  gzip(options = {}) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new CompressionPlugin({
+          algorithm: 'gzip',
+          compressionOptions: { level: 9 },
+          minRatio: Infinity,
+          filename: '[path][base].gz[query][fragment]',
+          ...options,
+        }),
       ],
-      ...options,
-    };
+    });
   }
 
-  static globalsRc(options = {}) {
-    return this.globals({
-      ...globals.node,
-      ...globals.es2026,
-    }, {
-      files: GlobalRC,
+  brotli(options = {}) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new CompressionPlugin({
+          algorithm: 'brotliCompress',
+          compressionOptions: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
+          minRatio: Infinity,
+          filename: '[path][base].br[query][fragment]',
+          ...options,
+        }),
+      ],
+    });
+  }
+
+  environment(options = {
+    WEBPACK_MODE: this.WEBPACK_MODE,
+    WEBPACK_BUILD: this.WEBPACK_BUILD,
+    WEBPACK_SERVE: this.WEBPACK_SERVE,
+    WEBPACK_WATCH: this.WEBPACK_WATCH,
+    NODE_ENV: this.NODE_ENV,
+  }) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new webpack.EnvironmentPlugin({
+          ...options,
+        }),
+      ],
+    });
+  }
+
+  define(options = {
+    global: 'globalThis',
+  }) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new webpack.DefinePlugin({
+          ...options,
+        }),
+      ],
+    });
+  }
+
+  entry(options = {}) {
+    return this.replace({
+      ...this.config,
+      entry: {
+        ...this.config.entry,
+        ...options,
+      },
+    });
+  }
+
+  browserslist(options = {}) {
+    return this.replace({
+      ...this.config,
+      target: 'browserslist',
       ...options,
     });
   }
 
-  static globalsBrowser(options = {}) {
-    return this.globals({
-      ...globals.browser,
-      ...globals.es2026,
-    }, {
-      files: GlobalEcmaScript,
-      ...options,
+  pwa(options = {}) {
+    return this.replace({
+      ...this.config,
+      plugins: [
+        ...this.config.plugins,
+        new WorkboxPlugin.GenerateSW({
+          clientsClaim: true,
+          skipWaiting: true,
+          cleanupOutdatedCaches: true,
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+          swDest: 'sw.js',
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/admin\//,
+            /^\/otlp\//,
+            /^\/ws\//,
+            /\./,
+          ],
+          ...options,
+        }),
+      ],
     });
   }
 
-  static globalsNode(options = {}) {
-    return this.globals({
-      ...globals.node,
-      ...globals.es2026,
-    }, {
-      files: GlobalEcmaScript,
-      ...options,
-    });
+  merge(callable) {
+    return this.replace(this.env, this.argv, callable(this.env, this.argv, { ...this.config }));
   }
 
-  static ignores(patterns = GlobalIgnore, name, options = {}) {
-    return {
-      extends: [globalIgnores(patterns, name)],
-      ...options,
-    };
-  }
-
-  static typescriptDisabled(options = {}) {
-    return {
-      extends: [typescript.configs.disableTypeChecked],
-      files: [...GlobalJavaScript, ...GlobalJsx],
-      ...options,
-    };
-  }
-
-  static compose(...configs) {
-    return defineConfig(...configs);
+  build() {
+    return { ...this.config };
   }
 }

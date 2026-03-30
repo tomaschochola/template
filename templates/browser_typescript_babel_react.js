@@ -10,18 +10,22 @@
  * @see {@link https://github.com/sponsors/tomaschochola} GitHub Sponsors
  */
 
-import { EslintConfig } from '@tomaschochola/ts-tooling-eslint-config';
+import { WebpackStack } from '@premierstacks/webpack-stack';
 
 // eslint-disable-next-line no-restricted-exports
-export default EslintConfig.compose(
-  EslintConfig.base(),
-  EslintConfig.globalsRc(),
-  EslintConfig.globalsBrowser(),
-  EslintConfig.ignores(),
-  EslintConfig.ignores(['node_modules']),
-  EslintConfig.recommended(),
-  EslintConfig.typescript(),
-  EslintConfig.stylistic(),
-  EslintConfig.sonarjs(),
-  EslintConfig.typescriptDisabled(),
-);
+export default function (env, argv) {
+  let stack = new WebpackStack(env, argv)
+    .entry({
+      index: ['./src/index.ts'],
+    })
+    .environment()
+    .define()
+    .html()
+    .copy();
+
+  if (stack.isProduction) {
+    stack = stack.gzip().brotli();
+  }
+
+  return stack.build();
+}
