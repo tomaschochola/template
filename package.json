@@ -33,7 +33,7 @@
         "Tomáš Chochola",
         "template"
     ],
-    "license": "CC-BY-ND-4.0",
+    "license": "BSD-3-Clause",
     "name": "@tomaschochola/template",
     "private": true,
     "repository": {
